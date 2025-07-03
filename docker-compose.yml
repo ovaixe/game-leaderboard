@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  db:
+    build: ./db_docker
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=leaderboard_db
+    ports:
+      - "5432:5432"
+  app:
+    build: ./backend
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+    environment:
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASSWORD=password
+      - DB_NAME=leaderboard_db
+      - SERVER_ADDRESS=:8080
+ 
+      
