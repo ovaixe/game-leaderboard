@@ -58,6 +58,20 @@ func main() {
 	// Use New Relic middleware
 	router.Use(nrgin.Middleware(app))
 
+	// Start periodic rank updates
+	go func() {
+		ticker := time.NewTicker(1 * time.Minute) // Update every 1 minute
+		defer ticker.Stop()
+		for range ticker.C {
+			log.Println("Updating leaderboard ranks...")
+			if err := leaderboardController.Service().UpdateRanks(); err != nil {
+				log.Printf("Error updating ranks: %v", err)
+			} else {
+				log.Println("Leaderboard ranks updated successfully.")
+			}
+		}
+	}()
+
 	// Set up routes
 	api := router.Group("/api")
 	{

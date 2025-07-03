@@ -61,3 +61,7 @@ func (lc *LeaderboardController) GetPlayerRank(c *gin.Context) {
 
 	utils.SuccessResponse(c, http.StatusOK, entry)
 }
+
+func (lc *LeaderboardController) Service() *services.LeaderboardService {
+	return lc.service
+}

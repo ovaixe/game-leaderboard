@@ -39,7 +39,7 @@ func (s *LeaderboardService) SubmitScore(userID, score int) error {
 		return err
 	}
 
-	go s.leaderboardRepo.UpdateRanks()
+	
 	return nil
 }
 
@@ -49,4 +49,8 @@ func (s *LeaderboardService) GetTopPlayers(limit int) ([]models.LeaderboardEntry
 
 func (s *LeaderboardService) GetPlayerRank(userID int) (*models.LeaderboardEntry, error) {
 	return s.leaderboardRepo.GetPlayerRank(userID)
+}
+
+func (s *LeaderboardService) UpdateRanks() error {
+	return s.leaderboardRepo.UpdateRanks()
 }
