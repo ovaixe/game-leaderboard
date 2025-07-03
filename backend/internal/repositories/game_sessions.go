@@ -13,9 +13,19 @@ func NewGameSessionRepository(db *sql.DB) *GameSessionRepository {
 }
 
 func (r *GameSessionRepository) RecordSession(userID, score int) error {
-	_, err := r.db.Exec(
+	tx, err := r.db.Begin()
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.Exec(
 		"INSERT INTO game_sessions(user_id, score, game_mode) VALUES($1, $2, $3)",
 		userID, score, "default",
 	)
-	return err
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return tx.Commit()
 }
