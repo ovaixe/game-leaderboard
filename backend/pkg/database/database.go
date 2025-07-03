@@ -16,14 +16,26 @@ func InitDB(cfg config.DBConfig) (*sql.DB, error) {
 		cfg.Host, cfg.Port, cfg.User, cfg.Password, cfg.DBName,
 	)
 
-	db, err := sql.Open("postgres", connectionString)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open database: %w", err)
-	}
+	var db *sql.DB
+	var err error
+	for {
+		db, err = sql.Open("postgres", connectionString)
+		if err != nil {
+			fmt.Printf("Failed to open database: %v. Retrying in 5 seconds...", err)
+			time.Sleep(5 * time.Second)
+			continue
+		}
 
-	if err = db.Ping(); err != nil {
-		return nil, fmt.Errorf("failed to ping database: %w", err)
+		err = db.Ping()
+		if err != nil {
+			db.Close() // Close the connection before retrying
+			fmt.Printf("Failed to ping database: %v. Retrying in 5 seconds...", err)
+			time.Sleep(5 * time.Second)
+			continue
+		}
+		return db, nil // Successfully connected and pinged
 	}
+	return nil, fmt.Errorf("failed to connect to database after multiple retries: %w", err)
 
 	db.SetMaxOpenConns(25)
 	db.SetMaxIdleConns(25)

@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"database/sql"
+	"math/rand"
 )
 
 type GameSessionRepository struct {
@@ -18,9 +19,14 @@ func (r *GameSessionRepository) RecordSession(userID, score int) error {
 		return err
 	}
 
+	gameMode := "solo"
+	if rand.Float64() > 0.5 {
+		gameMode = "team"
+	}
+
 	_, err = tx.Exec(
 		"INSERT INTO game_sessions(user_id, score, game_mode) VALUES($1, $2, $3)",
-		userID, score, "default",
+		userID, score, gameMode,
 	)
 	if err != nil {
 		tx.Rollback()

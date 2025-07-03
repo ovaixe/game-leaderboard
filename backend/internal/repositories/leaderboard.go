@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/go-redis/redis/v8"
@@ -45,43 +46,21 @@ func (r *LeaderboardRepository) SubmitScore(userID, score int) error {
 		return err
 	}
 
+	// Update the rank for the specific user
+	_, err = r.db.Exec(`
+		UPDATE leaderboard
+		SET rank = (SELECT rank FROM (SELECT user_id, RANK() OVER (ORDER BY total_score DESC) as rank FROM leaderboard) AS ranked WHERE user_id = $1)
+		WHERE user_id = $1
+	`, userID)
+
+	if err != nil {
+		return err
+	}
+
 	// Invalidate Redis caches
 	ctx := context.Background()
 	r.redis.Del(ctx, "top_players") // Invalidate top players cache
 	r.redis.Del(ctx, fmt.Sprintf("player_rank:%d", userID)) // Invalidate specific player rank
-
-	return nil
-}
-
-func (r *LeaderboardRepository) UpdateRanks() error {
-	tx, err := r.db.Begin()
-	if err != nil {
-		return err
-	}
-
-	_, err = tx.Exec(`
-		UPDATE leaderboard
-		SET rank = ranked.rank
-		FROM (
-			SELECT user_id, RANK() OVER (ORDER BY total_score DESC) as rank
-			FROM leaderboard
-		) ranked
-		WHERE leaderboard.user_id = ranked.user_id
-	`)
-
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	if err = tx.Commit(); err != nil {
-		return err
-	}
-
-	// Invalidate Redis caches after ranks are updated
-	ctx := context.Background()
-	r.redis.Del(ctx, "top_players") // Invalidate top players cache
-	// No need to invalidate individual player ranks, as they will be re-fetched on demand
 
 	return nil
 }
@@ -103,11 +82,12 @@ func (r *LeaderboardRepository) GetTopPlayers(limit int) ([]models.LeaderboardEn
 		SELECT u.id, u.username, l.total_score, l.rank
 		FROM leaderboard l
 		JOIN users u ON l.user_id = u.id
-		ORDER BY l.rank ASC
+		ORDER BY l.total_score DESC
 		LIMIT $1
 	`, limit)
 
 	if err != nil {
+		log.Printf("Error querying top players from DB: %v", err)
 		return nil, err
 	}
 	defer rows.Close()
@@ -116,9 +96,13 @@ func (r *LeaderboardRepository) GetTopPlayers(limit int) ([]models.LeaderboardEn
 	for rows.Next() {
 		var entry models.LeaderboardEntry
 		if err := rows.Scan(&entry.UserID, &entry.Username, &entry.TotalScore, &entry.Rank); err != nil {
+			log.Printf("Error scanning row for top players: %v", err)
 			return nil, err
 		}
 		entries = append(entries, entry)
+	}
+	if len(entries) == 0 {
+		log.Println("No top players found in DB.")
 	}
 
 	// Store in Redis cache
@@ -163,4 +147,34 @@ func (r *LeaderboardRepository) GetPlayerRank(userID int) (*models.LeaderboardEn
 	}
 
 	return &entry, nil
+}
+
+func (r *LeaderboardRepository) UpdateAllRanks() error {
+	_, err := r.db.Exec(`
+		WITH ranked_leaderboard AS (
+			SELECT
+				user_id,
+				RANK() OVER (ORDER BY total_score DESC) as new_rank
+			FROM leaderboard
+		)
+		UPDATE leaderboard
+		SET rank = rl.new_rank
+		FROM ranked_leaderboard rl
+		WHERE leaderboard.user_id = rl.user_id;
+	`)
+	if err != nil {
+		return fmt.Errorf("error updating all ranks: %w", err)
+	}
+
+	// Invalidate all player rank caches after a full rank update
+	// This is a more aggressive invalidation, but ensures consistency.
+	// For very large leaderboards, a more granular invalidation strategy might be needed.
+	ctx := context.Background()
+	keys, err := r.redis.Keys(ctx, "player_rank:*").Result()
+	if err == nil && len(keys) > 0 {
+		r.redis.Del(ctx, keys...)
+	}
+	r.redis.Del(ctx, "top_players") // Invalidate top players cache as well
+
+	return nil
 }

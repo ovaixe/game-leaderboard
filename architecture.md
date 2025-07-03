@@ -1,38 +1,21 @@
 # System Architecture
 
-This document outlines the high-level and low-level design of the gaming leaderboard system.
+This document outlines the high-level design of the gaming leaderboard system.
 
 ## High-Level Design (HLD)
 
 The system will consist of the following components:
 
-*   **Go Backend:** A web server that exposes a RESTful API for submitting scores and retrieving leaderboard data.
-*   **Postgres Database:** A relational database that stores user data, game sessions, and leaderboard rankings.
-*   **Python Simulation Script:** A script that simulates user activity by sending requests to the API.
+*   **Go Backend:** A web server that exposes a RESTful API for submitting scores and retrieving leaderboard data. It handles business logic, interacts with the database, and serves API requests from the frontend and simulation script.
+*   **Postgres Database:** A relational database that stores user data, game sessions, and leaderboard rankings. It serves as the persistent storage for all application data.
+*   **Redis Cache:** A high-performance in-memory data store used for caching frequently accessed leaderboard data to improve response times and reduce database load.
+*   **Frontend (React):** A web application that provides the user interface for displaying the leaderboard and potentially allowing user interaction (e.g., viewing their rank).
+*   **Python Simulation Script:** A script that simulates user activity by sending requests to the API, useful for testing and load generation.
 
-## Low-Level Design (LLD)
+## Component Interactions
 
-### Go Backend
-
-*   **`main.go`:** The entry point of the application. It will initialize the database connection, set up the HTTP router, and start the web server.
-*   **`handlers.go`:** This file will contain the HTTP handlers for the API endpoints.
-*   **`storage.go`:** This file will handle all interactions with the Postgres database.
-*   **`models.go`:** This file will define the data structures for users, game sessions, and leaderboard entries.
-
-### Database Schema
-
-*   **`users` table:**
-    *   `id` (SERIAL PRIMARY KEY)
-    *   `username` (VARCHAR(255) UNIQUE NOT NULL)
-    *   `join_date` (TIMESTAMP DEFAULT CURRENT_TIMESTAMP)
-*   **`game_sessions` table:**
-    *   `id` (SERIAL PRIMARY KEY)
-    *   `user_id` (INT REFERENCES users(id) ON DELETE CASCADE)
-    *   `score` (INT NOT NULL)
-    *   `game_mode` (VARCHAR(50) NOT NULL)
-    *   `timestamp` (TIMESTAMP DEFAULT CURRENT_TIMESTAMP)
-*   **`leaderboard` table:**
-    *   `id` (SERIAL PRIMARY KEY)
-    *   `user_id` (INT REFERENCES users(id) ON DELETE CASCADE)
-    *   `total_score` (INT NOT NULL)
-    *   `rank` (INT)
+*   The **Frontend** communicates with the **Go Backend** via its RESTful API to fetch leaderboard data and potentially submit scores.
+*   The **Python Simulation Script** also interacts with the **Go Backend**'s API to simulate game sessions and score submissions.
+*   The **Go Backend** interacts with the **Postgres Database** for persistent storage of user, game session, and leaderboard data.
+*   The **Go Backend** utilizes **Redis Cache** to store and retrieve frequently accessed leaderboard data, reducing direct database queries.
+*   The **Postgres Database** and **Redis Cache** are managed via Docker containers for easy setup and deployment.

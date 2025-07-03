@@ -52,5 +52,5 @@ func (s *LeaderboardService) GetPlayerRank(userID int) (*models.LeaderboardEntry
 }
 
 func (s *LeaderboardService) UpdateRanks() error {
-	return s.leaderboardRepo.UpdateRanks()
+	return s.leaderboardRepo.UpdateAllRanks()
 }
