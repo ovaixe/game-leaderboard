@@ -6,6 +6,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
+	"github.com/newrelic/go-agent/v3/newrelic"
+	"github.com/newrelic/go-agent/v3/integrations/nrgin"
 
 	"github.com/ovaixe/game-leaderboard/internal/config"
 	"github.com/ovaixe/game-leaderboard/internal/controllers"
@@ -21,6 +23,16 @@ func main() {
 
 	// Initialize configuration
 	cfg := config.LoadConfig()
+
+	// Initialize New Relic
+	app, err := newrelic.NewApplication(
+		newrelic.ConfigAppName(cfg.NewRelicAppName),
+		newrelic.ConfigLicense(cfg.NewRelicLicenseKey),
+		newrelic.ConfigAppLogForwardingEnabled(true),
+	)
+	if err != nil {
+		log.Fatalf("Failed to initialize New Relic: %v", err)
+	}
 
 	// Initialize database
 	rawDB, err := database.InitDB(cfg.DBConfig)
@@ -42,6 +54,9 @@ func main() {
 
 	// Set up Gin
 	router := gin.Default()
+
+	// Use New Relic middleware
+	router.Use(nrgin.Middleware(app))
 
 	// Set up routes
 	api := router.Group("/api")

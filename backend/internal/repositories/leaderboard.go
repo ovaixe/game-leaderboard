@@ -1,25 +1,29 @@
 package repositories
 
 import (
+	"context"
 	"database/sql"
-	"sync"
+	"encoding/json"
+	"fmt"
+	"time"
 
+	"github.com/go-redis/redis/v8"
 	"github.com/ovaixe/game-leaderboard/internal/models"
 )
 
 type LeaderboardRepository struct {
-	db        *sql.DB
-	cacheLock sync.RWMutex
+	db    *sql.DB
+	redis *redis.Client
 }
 
-func NewLeaderboardRepository(db *sql.DB) *LeaderboardRepository {
-	return &LeaderboardRepository{db: db}
+func NewLeaderboardRepository(db *sql.DB, redisClient *redis.Client) *LeaderboardRepository {
+	return &LeaderboardRepository{
+		db:    db,
+		redis: redisClient,
+	}
 }
 
 func (r *LeaderboardRepository) SubmitScore(userID, score int) error {
-	r.cacheLock.Lock()
-	defer r.cacheLock.Unlock()
-
 	tx, err := r.db.Begin()
 	if err != nil {
 		return err
@@ -37,13 +41,19 @@ func (r *LeaderboardRepository) SubmitScore(userID, score int) error {
 		return err
 	}
 
-	return tx.Commit()
+	if err = tx.Commit(); err != nil {
+		return err
+	}
+
+	// Invalidate Redis caches
+	ctx := context.Background()
+	r.redis.Del(ctx, "top_players") // Invalidate top players cache
+	r.redis.Del(ctx, fmt.Sprintf("player_rank:%d", userID)) // Invalidate specific player rank
+
+	return nil
 }
 
 func (r *LeaderboardRepository) UpdateRanks() error {
-	r.cacheLock.Lock()
-	defer r.cacheLock.Unlock()
-
 	tx, err := r.db.Begin()
 	if err != nil {
 		return err
@@ -64,13 +74,31 @@ func (r *LeaderboardRepository) UpdateRanks() error {
 		return err
 	}
 
-	return tx.Commit()
+	if err = tx.Commit(); err != nil {
+		return err
+	}
+
+	// Invalidate Redis caches after ranks are updated
+	ctx := context.Background()
+	r.redis.Del(ctx, "top_players") // Invalidate top players cache
+	// No need to invalidate individual player ranks, as they will be re-fetched on demand
+
+	return nil
 }
 
 func (r *LeaderboardRepository) GetTopPlayers(limit int) ([]models.LeaderboardEntry, error) {
-	r.cacheLock.RLock()
-	defer r.cacheLock.RUnlock()
+	ctx := context.Background()
 
+	// Try to get from Redis cache
+	cached, err := r.redis.Get(ctx, "top_players").Bytes()
+	if err == nil {
+		var entries []models.LeaderboardEntry
+		if err := json.Unmarshal(cached, &entries); err == nil {
+			return entries, nil
+		}
+	}
+
+	// If not in cache, fetch from DB
 	rows, err := r.db.Query(`
 		SELECT u.id, u.username, l.total_score, l.rank
 		FROM leaderboard l
@@ -93,15 +121,31 @@ func (r *LeaderboardRepository) GetTopPlayers(limit int) ([]models.LeaderboardEn
 		entries = append(entries, entry)
 	}
 
+	// Store in Redis cache
+	serialized, err := json.Marshal(entries)
+	if err == nil {
+		r.redis.Set(ctx, "top_players", serialized, 5*time.Minute) // Cache for 5 minutes
+	}
+
 	return entries, nil
 }
 
 func (r *LeaderboardRepository) GetPlayerRank(userID int) (*models.LeaderboardEntry, error) {
-	r.cacheLock.RLock()
-	defer r.cacheLock.RUnlock()
+	ctx := context.Background()
+	cacheKey := fmt.Sprintf("player_rank:%d", userID)
 
+	// Try to get from Redis cache
+	cached, err := r.redis.Get(ctx, cacheKey).Bytes()
+	if err == nil {
+		var entry models.LeaderboardEntry
+		if err := json.Unmarshal(cached, &entry); err == nil {
+			return &entry, nil
+		}
+	}
+
+	// If not in cache, fetch from DB
 	var entry models.LeaderboardEntry
-	err := r.db.QueryRow(`
+	err = r.db.QueryRow(`
 		SELECT u.id, u.username, l.total_score, l.rank
 		FROM leaderboard l
 		JOIN users u ON l.user_id = u.id
@@ -110,6 +154,12 @@ func (r *LeaderboardRepository) GetPlayerRank(userID int) (*models.LeaderboardEn
 
 	if err != nil {
 		return nil, err
+	}
+
+	// Store in Redis cache
+	serialized, err := json.Marshal(entry)
+	if err == nil {
+		r.redis.Set(ctx, cacheKey, serialized, 1*time.Minute) // Cache for 1 minute
 	}
 
 	return &entry, nil

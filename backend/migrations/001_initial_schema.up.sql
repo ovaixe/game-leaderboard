@@ -25,4 +25,5 @@ CREATE TABLE leaderboard (
 -- Indexes for performance
 CREATE INDEX idx_leaderboard_total_score ON leaderboard(total_score DESC);
 CREATE INDEX idx_leaderboard_user_id ON leaderboard(user_id);
+CREATE INDEX idx_leaderboard_rank ON leaderboard(rank);
 CREATE INDEX idx_game_sessions_user_id ON game_sessions(user_id);

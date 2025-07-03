@@ -14,8 +14,10 @@ type DBConfig struct {
 }
 
 type Config struct {
-	ServerAddress string
-	DBConfig      DBConfig
+	ServerAddress      string
+	DBConfig           DBConfig
+	NewRelicAppName    string
+	NewRelicLicenseKey string
 }
 
 func LoadConfig() *Config {
@@ -26,8 +28,10 @@ func LoadConfig() *Config {
 			Port:     getEnvAsInt("DB_PORT", 5432),
 			User:     getEnv("DB_USER", "postgres"),
 			Password: getEnv("DB_PASSWORD", "password"),
-			DBName:     getEnv("DB_NAME", "leaderboard_db"),
+			DBName:   getEnv("DB_NAME", "leaderboard_db"),
 		},
+		NewRelicAppName:    getEnv("NEW_RELIC_APP_NAME", "game-leaderboard"),
+		NewRelicLicenseKey: getEnv("NEW_RELIC_LICENSE_KEY", ""),
 	}
 }
 

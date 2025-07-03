@@ -22,5 +22,19 @@ services:
       - DB_PASSWORD=password
       - DB_NAME=leaderboard_db
       - SERVER_ADDRESS=:8080
+      - NEW_RELIC_APP_NAME=game-leaderboard
+      - NEW_RELIC_LICENSE_KEY=cb5713ebdfe7f8182e81c25ac9d38604FFFFNRAL
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+
+  redis:
+    image: "redis:alpine"
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+volumes:
+  redis_data:
  
       

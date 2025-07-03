@@ -1,9 +1,12 @@
 package services
 
 import (
-	"github.com/ovaixe/game-leaderboard/pkg/database"
+	"log"
+
 	"github.com/ovaixe/game-leaderboard/internal/models"
 	"github.com/ovaixe/game-leaderboard/internal/repositories"
+	"github.com/ovaixe/game-leaderboard/pkg/database"
+	"github.com/ovaixe/game-leaderboard/pkg/redis"
 )
 
 type LeaderboardService struct {
@@ -13,11 +16,17 @@ type LeaderboardService struct {
 
 func NewLeaderboardService(db database.Database) *LeaderboardService {
 	// Get the concrete *sql.DB instance
-    sqlDB := db.DB()
+	sqlDB := db.DB()
+
+	// Initialize Redis client
+	redisClient, err := redis.NewRedisClient()
+	if err != nil {
+		log.Fatalf("Could not connect to Redis: %v", err)
+	}
 
 	return &LeaderboardService{
 		gameSessionRepo: repositories.NewGameSessionRepository(sqlDB),
-		leaderboardRepo: repositories.NewLeaderboardRepository(sqlDB),
+		leaderboardRepo: repositories.NewLeaderboardRepository(sqlDB, redisClient.Client),
 	}
 }
 
