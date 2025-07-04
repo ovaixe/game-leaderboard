@@ -11,11 +11,8 @@ This repository contains a full-stack game leaderboard system, featuring a Go ba
   - [Running the Application](#running-the-application)
 - [API Endpoints](#api-endpoints)
 - [Project Structure](#project-structure)
-- [Contributing](#contributing)
-- [License](#license)
 
 ## Features
-*   **User Registration:** Register new players.
 *   **Score Submission:** Submit game scores for registered users.
 *   **Leaderboard Retrieval:** Get global leaderboard rankings.
 *   **User Rank Lookup:** Check a specific user's rank and total score.
@@ -87,9 +84,3 @@ Detailed API documentation can be found in [api-endpoints.md](api-endpoints.md).
     ├── src/                    # React source code
     └── ...
 ```
-
-## Contributing
-Contributions are welcome! Please see `CONTRIBUTING.md` (if available) for details on how to contribute.
-
-## License
-This project is licensed under the MIT License - see the `LICENSE` file for details.

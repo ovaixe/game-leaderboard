@@ -3,35 +3,11 @@
 This document outlines the RESTful API endpoints exposed by the Go backend.
 
 ## Base URL
-`/api/v1`
+`/api`
 
 ## Endpoints
 
-### 1. Register User
-*   **Method:** `POST`
-*   **Path:** `/users/register`
-*   **Description:** Registers a new user in the system.
-*   **Request Body:**
-    ```json
-    {
-        "username": "string"
-    }
-    ```
-*   **Response (Success - 201 Created):**
-    ```json
-    {
-        "message": "User registered successfully",
-        "user_id": 123
-    }
-    ```
-*   **Response (Error - 400 Bad Request):**
-    ```json
-    {
-        "error": "Username already exists"
-    }
-    ```
-
-### 2. Submit Score
+### 1. Submit Score
 *   **Method:** `POST`
 *   **Path:** `/scores/submit`
 *   **Description:** Submits a new game score for a user.
@@ -57,7 +33,7 @@ This document outlines the RESTful API endpoints exposed by the Go backend.
     }
     ```
 
-### 3. Get Leaderboard
+### 2. Get Leaderboard
 *   **Method:** `GET`
 *   **Path:** `/leaderboard`
 *   **Description:** Retrieves the global leaderboard.
@@ -82,7 +58,7 @@ This document outlines the RESTful API endpoints exposed by the Go backend.
     ]
     ```
 
-### 4. Get User Rank
+### 3. Get User Rank
 *   **Method:** `GET`
 *   **Path:** `/leaderboard/user/{user_id}`
 *   **Description:** Retrieves the rank and total score for a specific user.
