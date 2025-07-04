@@ -18,10 +18,17 @@ func InitDB(cfg config.DBConfig) (*sql.DB, error) {
 
 	var db *sql.DB
 	var err error
+	const maxRetries = 30 // ~2.5 minutes with 5 second intervals
+	retryCount := 0
+
 	for {
 		db, err = sql.Open("postgres", connectionString)
 		if err != nil {
-			fmt.Printf("Failed to open database: %v. Retrying in 5 seconds...", err)
+			fmt.Printf("Failed to open database: %v. Retrying in 5 seconds...\n", err)
+			retryCount++
+			if retryCount >= maxRetries {
+				return nil, fmt.Errorf("max retries reached, failed to open database: %w", err)
+			}
 			time.Sleep(5 * time.Second)
 			continue
 		}
@@ -29,19 +36,22 @@ func InitDB(cfg config.DBConfig) (*sql.DB, error) {
 		err = db.Ping()
 		if err != nil {
 			db.Close() // Close the connection before retrying
-			fmt.Printf("Failed to ping database: %v. Retrying in 5 seconds...", err)
+			fmt.Printf("Failed to ping database: %v. Retrying in 5 seconds...\n", err)
+			retryCount++
+			if retryCount >= maxRetries {
+				return nil, fmt.Errorf("max retries reached, failed to ping database: %w", err)
+			}
 			time.Sleep(5 * time.Second)
 			continue
 		}
-		return db, nil // Successfully connected and pinged
+
+		// Connection successful, set connection pool settings
+		db.SetMaxOpenConns(25)
+		db.SetMaxIdleConns(25)
+		db.SetConnMaxLifetime(5 * time.Minute)
+
+		return db, nil
 	}
-	return nil, fmt.Errorf("failed to connect to database after multiple retries: %w", err)
-
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(25)
-	db.SetConnMaxLifetime(5 * time.Minute)
-
-	return db, nil
 }
 
 // Database interface wraps the common database operations
