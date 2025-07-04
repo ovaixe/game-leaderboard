@@ -6,8 +6,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
-	"github.com/newrelic/go-agent/v3/newrelic"
 	"github.com/newrelic/go-agent/v3/integrations/nrgin"
+	"github.com/newrelic/go-agent/v3/newrelic"
 
 	"github.com/ovaixe/game-leaderboard/internal/config"
 	"github.com/ovaixe/game-leaderboard/internal/controllers"
@@ -15,7 +15,6 @@ import (
 )
 
 func main() {
-	time.Sleep(time.Second * 10)
 	// Load environment variables
 	if err := godotenv.Load(); err != nil {
 		log.Println("No .env file found")
@@ -44,10 +43,6 @@ func main() {
 
 	// Wrap the DB with our interface
 	db := database.NewDBWrapper(rawDB)
-
-	// Create DB Tables and Populate data
-	//db.CreateTables()
-	//db.PopulateDB()
 
 	// Initialize controllers
 	leaderboardController := controllers.NewLeaderboardController(db)
